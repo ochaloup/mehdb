@@ -3,6 +3,37 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mehdb
+  annotations:
+    statefulsets.kubernetes.io/drainer-pod-template: |
+      {
+        "metadata": {
+          "labels": {
+            "app": "mehdb-drainer"
+          }
+        },
+        "spec": {
+          "terminationGracePeriodSeconds": 5,
+          "containers": [
+            {
+              "name": "main",
+              "image": "busybox",
+              "env": [
+                {
+                  "name": "MEHDB_DATADIR",
+                  "value": "/mehdbdata"
+                }
+              ],
+              "command": ["/bin/sh", "-c", "echo \"Datadir '$MEHDB_DATADIR' content now: \" ; find $MEHDB_DATADIR ; echo \"Draining data... this takes 10 seconds!\" ; sleep 10 ; rm -rf $MEHDB_DATADIR/* ; find $MEHDB_DATADIR"],
+              "volumeMounts": [
+                {
+                  "name": "data",
+                  "mountPath": "/mehdbdata"
+                }
+              ]
+            }
+          ]
+        }
+      }
 spec:
   selector:
     matchLabels:
@@ -42,7 +73,6 @@ spec:
       name: data
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "ebs"
       resources:
         requests:
           storage: 1Gi
